@@ -23,7 +23,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Build
-        run: go build -o bin/server ./cmd/server/main.go
+        run: go build -o ./bin/api/server/main ./api/cmd/server/main.go
 
   lint:
     runs-on: ubuntu-latest
