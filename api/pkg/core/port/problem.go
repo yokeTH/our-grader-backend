@@ -1,0 +1,31 @@
+package port
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
+	"github.com/yokeTH/our-grader-backend/api/pkg/dto"
+)
+
+type ProblemHandler interface {
+	CreateProblem(ctx *fiber.Ctx) error
+	GetProblems(ctx *fiber.Ctx) error
+	GetProblemByID(ctx *fiber.Ctx) error
+	UpdateProblem(ctx *fiber.Ctx) error
+	DeleteProblem(ctx *fiber.Ctx) error
+}
+
+type ProblemService interface {
+	CreateProblem(problem dto.ProblemRequestFrom) (domain.Problem, error)
+	GetProblemByID() (domain.Problem, error)
+	GetProblems(limit int, page int) ([]domain.Problem, error)
+	UpdateProblem(id uint, problem domain.Problem) (domain.Problem, error)
+	DeleteProblem() error
+}
+
+type ProblemRepository interface {
+	CreateProblem(problem *domain.Problem) error
+	GetProblems(limit int, page int) ([]domain.Problem, int, int, error)
+	GetProblemByID(id uint) (domain.Problem, error)
+	UpdateProblem(id uint, problem domain.Problem) (domain.Problem, error)
+	DeleteProblem(id uint) error
+}

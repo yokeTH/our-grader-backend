@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "proto/verilog";
+
+message VerilogRequest{
+    uint32 submissionID = 1;
+    string ZipObjectKey
+}

@@ -4,12 +4,12 @@ import (
 	"context"
 	"log"
 
-	"github.com/yokeTH/our-grader-backend/api/internal/core/service"
-	"github.com/yokeTH/our-grader-backend/api/internal/database"
-	"github.com/yokeTH/our-grader-backend/api/internal/handler"
-	"github.com/yokeTH/our-grader-backend/api/internal/repository"
-	"github.com/yokeTH/our-grader-backend/api/internal/server"
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
+	"github.com/yokeTH/our-grader-backend/api/pkg/core/service"
+	"github.com/yokeTH/our-grader-backend/api/pkg/database"
+	"github.com/yokeTH/our-grader-backend/api/pkg/handler"
+	"github.com/yokeTH/our-grader-backend/api/pkg/repository"
+	"github.com/yokeTH/our-grader-backend/api/pkg/server"
 )
 
 func main() {
@@ -23,9 +23,9 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	bookRepository := repository.NewBookRepository(db)
-	bookService := service.NewBookService(bookRepository)
-	bookHandler := handler.NewBookHandler(bookService)
+	languageRepo := repository.NewLanguageRepository(db)
+	languageService := service.NewLanguageService(languageRepo)
+	languageHandler := handler.NewLanguageHandler(languageService)
 
 	s := server.New(
 		server.WithName(config.Server.Name),
@@ -33,11 +33,9 @@ func main() {
 		server.WithPort(config.Server.Port),
 	)
 
-	s.Get("/books", bookHandler.GetBooks)
-	s.Get("/books/:id", bookHandler.GetBook)
-	s.Post("/books", bookHandler.CreateBook)
-	s.Patch("/books/:id", bookHandler.UpdateBook)
-	s.Delete("/books/:id", bookHandler.DeleteBook)
+	languageRoute := s.App.Group("/languages")
+	languageRoute.Get("/", languageHandler.GetAll)
+	languageRoute.Post("/", languageHandler.Create)
 
 	s.Start(ctx, stop)
 }
