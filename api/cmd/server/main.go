@@ -29,8 +29,9 @@ func main() {
 		log.Fatalf("failed to create storage: %v", err)
 	}
 
+	templateRepo := repository.NewTemplateFileRepository(db)
 	problemRepo := repository.NewProblemRepository(db)
-	problemService := service.NewProblemService(problemRepo, store)
+	problemService := service.NewProblemService(problemRepo, templateRepo, store)
 	problemHandler := handler.NewProblemHandler(problemService)
 
 	languageRepo := repository.NewLanguageRepository(db)

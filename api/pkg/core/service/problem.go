@@ -22,12 +22,13 @@ import (
 )
 
 type ProblemService struct {
-	ProblemRepository port.ProblemRepository
-	Storage           storage.IStorage
+	ProblemRepository  port.ProblemRepository
+	TemplateRepository port.TemplateRepository
+	Storage            storage.IStorage
 }
 
-func NewProblemService(p port.ProblemRepository, s storage.IStorage) port.ProblemService {
-	return &ProblemService{ProblemRepository: p, Storage: s}
+func NewProblemService(p port.ProblemRepository, t port.TemplateRepository, s storage.IStorage) port.ProblemService {
+	return &ProblemService{ProblemRepository: p, TemplateRepository: t, Storage: s}
 }
 
 func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.ProblemRequestFrom, zipFile *multipart.FileHeader) (domain.Problem, error) {
@@ -127,8 +128,9 @@ func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.Prob
 
 					// Add the uploaded file to the editable files slice
 					editableFile = append(editableFile, domain.TemplateFile{
-						Name: file.Name,
-						Key:  fileKey,
+						Name:      file.Name,
+						Key:       fileKey,
+						ProblemID: problem.ID,
 					})
 				}(i, file)
 			}
@@ -151,6 +153,14 @@ func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.Prob
 	// Set the editable files and project zip file in the problem struct
 	problem.EditableFile = editableFile
 	problem.ProjectZipFile = fileKey
+
+	// Save Template to database
+	// Convert editableFile to a slice of pointers
+	editableFilePtrs := make([]*domain.TemplateFile, len(editableFile))
+	for i := range editableFile {
+		editableFilePtrs[i] = &editableFile[i]
+	}
+	s.TemplateRepository.CreateMany(editableFilePtrs)
 
 	// Update the problem with editable files
 	problem, err = s.ProblemRepository.UpdateProblem(problem.ID, problem)
