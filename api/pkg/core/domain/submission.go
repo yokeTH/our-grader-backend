@@ -7,7 +7,7 @@ import (
 type Submission struct {
 	gorm.Model
 	SubmissionBy    string
-	SubmissionFile  []SubmissionFile
+	SubmissionFile  []*SubmissionFile
 	LanguageName    string
 	Language        Language `gorm:"foreignKey:LanguageName;references:Name"`
 	StdoutObjectKey string

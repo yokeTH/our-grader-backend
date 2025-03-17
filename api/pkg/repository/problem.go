@@ -29,7 +29,6 @@ func (r *ProblemRepository) GetProblems(limit int, page int) ([]domain.Problem, 
 		return nil, 0, 0, err
 	}
 	return problems, lastPage, total, nil
-
 }
 
 func (r *ProblemRepository) GetProblemByID(id uint) (domain.Problem, error) {

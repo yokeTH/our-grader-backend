@@ -38,6 +38,10 @@ func main() {
 	languageService := service.NewLanguageService(languageRepo)
 	languageHandler := handler.NewLanguageHandler(languageService)
 
+	submissionRepo := repository.NewSubmissionRepository(db)
+	submissionService := service.NewSubmissionService(store, submissionRepo, problemRepo)
+	submissionHandler := handler.NewSubmissionHandler(submissionService)
+
 	s := server.New(
 		server.WithName(config.Server.Name),
 		server.WithBodyLimitMB(config.Server.BodyLimitMB),
@@ -50,6 +54,9 @@ func main() {
 	languageRoute := s.App.Group("/languages")
 	languageRoute.Get("/", languageHandler.GetAll)
 	languageRoute.Post("/", languageHandler.Create)
+
+	submissionRoute := s.App.Group("/submissions")
+	submissionRoute.Post("/", submissionHandler.Submit)
 
 	s.Start(ctx, stop)
 }
