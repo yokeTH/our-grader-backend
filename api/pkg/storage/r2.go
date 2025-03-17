@@ -89,6 +89,15 @@ func (s *R2Storage) DeleteFile(ctx context.Context, key string) error {
 	return err
 }
 
+func (s *R2Storage) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
+	obj, err := s.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(key),
+	})
+
+	return obj.Body, err
+}
+
 func getFileSize(file io.Reader) (int64, error) {
 	// Read the entire file into a buffer to get the size.
 	buf := make([]byte, 0)

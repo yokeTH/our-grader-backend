@@ -6,5 +6,13 @@ option go_package = "proto/verilog";
 
 message VerilogRequest{
     uint32 submissionID = 1;
-    string ZipObjectKey
+    string zipKey = 2;
+}
+
+message VerilogResponse{
+    string msg = 1;
+}
+
+service SomeService {
+    rpc Run (VerilogRequest) returns (VerilogResponse);
 }

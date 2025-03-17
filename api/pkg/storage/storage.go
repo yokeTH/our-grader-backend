@@ -18,5 +18,6 @@ type IStorage interface {
 	UploadFile(ctx context.Context, key string, contentType string, file io.Reader) error
 	GetSignedUrl(ctx context.Context, key string, expires time.Duration) (string, error)
 	GetPublicUrl(key string) string
+	GetFile(ctx context.Context, key string) (io.ReadCloser, error)
 	DeleteFile(ctx context.Context, key string) error
 }
