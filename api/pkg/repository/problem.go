@@ -2,7 +2,6 @@ package repository
 
 import (
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
-	"github.com/yokeTH/our-grader-backend/api/pkg/core/port"
 	"github.com/yokeTH/our-grader-backend/api/pkg/database"
 )
 
@@ -10,7 +9,7 @@ type ProblemRepository struct {
 	db *database.Database
 }
 
-func NewProblemRepository(db *database.Database) port.ProblemRepository {
+func NewProblemRepository(db *database.Database) *ProblemRepository {
 	return &ProblemRepository{db: db}
 }
 
@@ -43,7 +42,7 @@ func (r *ProblemRepository) GetProblemByID(id uint) (domain.Problem, error) {
 
 func (r *ProblemRepository) UpdateProblem(id uint, updateProblem domain.Problem) (domain.Problem, error) {
 	var problem domain.Problem
-	if err := r.db.Model(&domain.Problem{}).Where("id = ?", id).Updates(updateProblem).First(&problem).Error; err != nil {
+	if err := r.db.Model(&domain.Problem{}).Preload("EditableFile").Preload("AllowLanguage").Where("id = ?", id).Updates(updateProblem).First(&problem).Error; err != nil {
 		return problem, err
 	}
 	return problem, nil

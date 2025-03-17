@@ -8,7 +8,8 @@ type Submission struct {
 	gorm.Model
 	SubmissionBy    string
 	SubmissionFile  []SubmissionFile
-	Language        Language
+	LanguageName    string
+	Language        Language `gorm:"foreignKey:LanguageName;references:Name"`
 	StdoutObjectKey string
 	Additional      string
 	ProblemID       uint

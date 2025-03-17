@@ -10,6 +10,7 @@ import (
 	"github.com/yokeTH/our-grader-backend/api/pkg/handler"
 	"github.com/yokeTH/our-grader-backend/api/pkg/repository"
 	"github.com/yokeTH/our-grader-backend/api/pkg/server"
+	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
 )
 
 func main() {
@@ -23,6 +24,15 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
+	store, err := storage.NewR2Storage(config.R2)
+	if err != nil {
+		log.Fatalf("failed to create storage: %v", err)
+	}
+
+	problemRepo := repository.NewProblemRepository(db)
+	problemService := service.NewProblemService(problemRepo, store)
+	problemHandler := handler.NewProblemHandler(problemService)
+
 	languageRepo := repository.NewLanguageRepository(db)
 	languageService := service.NewLanguageService(languageRepo)
 	languageHandler := handler.NewLanguageHandler(languageService)
@@ -32,6 +42,9 @@ func main() {
 		server.WithBodyLimitMB(config.Server.BodyLimitMB),
 		server.WithPort(config.Server.Port),
 	)
+
+	problemRoute := s.App.Group("/problems")
+	problemRoute.Post("/", problemHandler.CreateProblem)
 
 	languageRoute := s.App.Group("/languages")
 	languageRoute.Get("/", languageHandler.GetAll)

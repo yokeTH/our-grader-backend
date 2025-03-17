@@ -19,6 +19,11 @@ func main() {
 
 	if err := db.AutoMigrate(
 		&domain.Language{},
+		&domain.Problem{},
+		&domain.SubmissionFile{},
+		&domain.Submission{},
+		&domain.TemplateFile{},
+		&domain.Testcase{},
 	); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}

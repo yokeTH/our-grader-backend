@@ -1,6 +1,10 @@
 package port
 
 import (
+	"mime/multipart"
+
+	"context"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
 	"github.com/yokeTH/our-grader-backend/api/pkg/dto"
@@ -15,7 +19,7 @@ type ProblemHandler interface {
 }
 
 type ProblemService interface {
-	CreateProblem(problem dto.ProblemRequestFrom) (domain.Problem, error)
+	CreateProblem(ctx context.Context, problem dto.ProblemRequestFrom, zip *multipart.FileHeader) (domain.Problem, error)
 	GetProblemByID() (domain.Problem, error)
 	GetProblems(limit int, page int) ([]domain.Problem, error)
 	UpdateProblem(id uint, problem domain.Problem) (domain.Problem, error)

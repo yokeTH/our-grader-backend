@@ -42,11 +42,22 @@ func NewR2Storage(r2Config R2Config) (IStorage, error) {
 }
 
 func (s *R2Storage) UploadFile(ctx context.Context, key string, contentType string, file io.Reader) error {
-	_, err := s.Client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(s.BucketName),
-		Key:         aws.String(key),
-		ContentType: aws.String(contentType),
-		Body:        file,
+	// Calculate the content length (if it's available in the stream).
+	// If the file's size is known beforehand, this can be useful.
+	// You can also try to set an explicit "Content-Length" header if needed.
+	// Here we assume you have the file size available.
+	fileSize, err := getFileSize(file) // This function should calculate the size if needed.
+	if err != nil {
+		return fmt.Errorf("unable to determine file size: %w", err)
+	}
+
+	// Use the file data and upload it to R2 without specifying CRC32 checksum.
+	_, err = s.Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:        aws.String(s.BucketName),
+		Key:           aws.String(key),
+		ContentType:   aws.String(contentType),
+		Body:          file,
+		ContentLength: aws.Int64(fileSize), // Optional if size is known
 	})
 
 	return err
@@ -76,4 +87,14 @@ func (s *R2Storage) DeleteFile(ctx context.Context, key string) error {
 	})
 
 	return err
+}
+
+func getFileSize(file io.Reader) (int64, error) {
+	// Read the entire file into a buffer to get the size.
+	buf := make([]byte, 0)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return 0, err
+	}
+	return int64(n), nil
 }
