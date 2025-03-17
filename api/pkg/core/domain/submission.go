@@ -7,7 +7,7 @@ import (
 type Submission struct {
 	gorm.Model
 	SubmissionBy    string
-	CodeObjectKey   string
+	SubmissionFile  []SubmissionFile
 	Language        Language
 	StdoutObjectKey string
 	Additional      string
