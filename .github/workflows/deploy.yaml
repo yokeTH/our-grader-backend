@@ -43,7 +43,7 @@ jobs:
 
       - name: Build and push api container
         id: docker_build_api
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ghcr.io/${{ env.REPO_NAME }}:api-latest
@@ -52,7 +52,7 @@ jobs:
 
       - name: Build and push verilog container
         id: docker_build_verilog
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           push: true
           tags: ghcr.io/${{ env.REPO_NAME }}:verilog-latest
