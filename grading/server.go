@@ -57,7 +57,10 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	defer body.Close()
 
 	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", submission.Problem.ProjectZipFile)
-	os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm)
+	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
+		return &verilog.VerilogResponse{Msg: err.Error()}, nil
+	}
+
 	outputFile, err := os.Create(zipLocation)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
@@ -72,7 +75,10 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 
 	// Unzip the contents to a temporary directory
 	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/tmp/run"
-	os.MkdirAll(unzipDir, os.ModePerm)
+	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
+		return &verilog.VerilogResponse{Msg: err.Error()}, nil
+	}
+
 	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
@@ -111,7 +117,9 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 	submission.StdoutObjectKey = fileKey
-	submissionRepo.Update(&submission)
+	if err := submissionRepo.Update(&submission); err != nil {
+		return &verilog.VerilogResponse{Msg: err.Error()}, nil
+	}
 
 	// Parse the simulation result
 	resultPath := fmt.Sprintf("%s/%s", simDir, "results.xml")

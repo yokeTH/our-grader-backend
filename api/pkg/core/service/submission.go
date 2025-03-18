@@ -72,9 +72,11 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 		}
 	}
 
-	s.client.Run(ctx, &verilog.VerilogRequest{
+	if _, err := s.client.Run(ctx, &verilog.VerilogRequest{
 		SubmissionID: uint32(submission.ID),
-	})
+	}); err != nil {
+		return apperror.InternalServerError(err, "verilog service run error")
+	}
 
 	return nil
 }

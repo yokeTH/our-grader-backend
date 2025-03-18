@@ -159,7 +159,9 @@ func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.Prob
 	for i := range editableFile {
 		editableFilePtrs[i] = &editableFile[i]
 	}
-	s.TemplateRepository.CreateMany(editableFilePtrs)
+	if err := s.TemplateRepository.CreateMany(editableFilePtrs); err != nil {
+		return problem, err
+	}
 
 	// Update the problem with editable files
 	problem, err = s.ProblemRepository.UpdateProblem(problem.ID, problem)
