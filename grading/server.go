@@ -22,57 +22,62 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	port = ":50051"
-)
+const port = ":50051"
 
 type server struct {
 	verilog.UnimplementedSomeServiceServer
 }
 
 func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.VerilogResponse, error) {
+	// Load configurations and setup storage and database
 	config := config.Load()
 	store, err := storage.NewR2Storage(config.R2)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
+
 	db, err := database.NewPostgresDB(config.PSQL)
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
+
 	submissionRepo := repository.NewSubmissionRepository(db)
 
+	// Retrieve submission from database
 	submission, err := submissionRepo.GetSubmissionsByID(uint(in.SubmissionID))
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	body, err := store.GetFile(ctx, in.ZipKey)
+	// Retrieve and store the zip file from cloud storage
+	body, err := store.GetFile(ctx, submission.Problem.ProjectZipFile)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
+	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", in.ZipKey)
+	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", submission.Problem.ProjectZipFile)
 	os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm)
 	outputFile, err := os.Create(zipLocation)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 	defer outputFile.Close()
-	defer body.Close()
 
+	// Copy the content of the zip file to the local file system
 	_, err = io.Copy(outputFile, body)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
+	// Unzip the contents to a temporary directory
 	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/tmp/run"
 	os.MkdirAll(unzipDir, os.ModePerm)
 	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// write file to dir
+	// Write submission files to the unzip directory
 	for _, file := range submission.SubmissionFile {
 		fileKey := fmt.Sprintf("submissions/%d/%d", submission.ID, file.TemplateFileID)
 		fileContent, err := store.GetFile(ctx, fileKey)
@@ -94,24 +99,26 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		}
 	}
 
-	// run
+	// Run the simulation using `make`
 	simDir := fmt.Sprintf("%s/%s", unzipDir, "cocotb")
 	cmd := exec.Command("make")
 	cmd.Dir = simDir
 	stdOut, _ := cmd.CombinedOutput()
 
-	// save stdout
+	// Save stdout to cloud storage
 	fileKey := fmt.Sprintf("submissions/%d/stdOut.txt", submission.ID)
 	if err := store.UploadFile(ctx, fileKey, "text/plain", strings.NewReader(string(stdOut))); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
+	// Parse the simulation result
 	resultPath := fmt.Sprintf("%s/%s", simDir, "results.xml")
 	simResult, err := result.GetResult(resultPath)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
+	// Process the test case results concurrently
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var firstErr error
@@ -123,6 +130,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 			wg.Add(1)
 			go func(testcase result.Testcase) {
 				defer wg.Done()
+
 				var result domain.TestcaseResult
 				if testcase.Failure != nil {
 					result = domain.TestResultFail
@@ -133,6 +141,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 				testcaseResult := submission.Testcases[i]
 				testcaseResult.Result = result
 				err := testcaseRepo.UpdateTestcase(&testcaseResult)
+
 				if err != nil {
 					mu.Lock()
 					if firstErr == nil {
@@ -146,16 +155,16 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 
 	wg.Wait()
 
+	// Handle any errors encountered during the concurrent processing
 	if firstErr != nil {
 		return &verilog.VerilogResponse{Msg: firstErr.Error()}, nil
 	}
-
-	// fileKey = fmt.Sprintf("submissions/%d/stdOut.txt", submission.ID)
 
 	return &verilog.VerilogResponse{Msg: "Success"}, nil
 }
 
 func main() {
+	// Start the gRPC server
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
