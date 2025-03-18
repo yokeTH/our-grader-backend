@@ -19,7 +19,7 @@ RUN go mod download
 
 COPY .. .
 
-RUN go build -o /bin/server ./grading/server.go
+RUN go build -o bin/server ./grading/server.go
 
 RUN chmod +x /app/bin/server
 
