@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/yokeTH/our-grader-backend/api/pkg/apperror"
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
@@ -67,7 +66,7 @@ func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.Prob
 	}
 
 	// Generate a unique key for the project zip file
-	fileKey := fmt.Sprintf("problems/%d/zip/%d.zip", problem.ID, time.Now().UnixMilli())
+	fileKey := fmt.Sprintf("problems/%d/zip.zip", problem.ID)
 
 	// Upload the zip file to storage (it is uploaded as is)
 	if err := s.Storage.UploadFile(ctx, fileKey, contentType, fileData); err != nil {
