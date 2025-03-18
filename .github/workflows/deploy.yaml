@@ -43,14 +43,15 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ghcr.io/yoketh/our-grader-backend:latest
+          tags: ghcr.io/${{ github.repository }}:latest
 
       - uses: deploys-app/deploys-action@v1
         with:
-          project: pic-me-pls
+          project: our-grader
           location: gke.cluster-rcf2
-          name: picmepls-backend
-          image: ghcr.io/yoketh/our-grader-backend@${{ steps.docker_build.outputs.digest }}
+          name: backend
+          image: ghcr.io/${{ github.repository }}@${{ steps.docker_build.outputs.digest }}
+
         env:
           DEPLOYS_AUTH_USER: ${{ secrets.DEPLOYS_AUTH_USER }}
           DEPLOYS_AUTH_PASS: ${{ secrets.DEPLOYS_AUTH_PASS }}
