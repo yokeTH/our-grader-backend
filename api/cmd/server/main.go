@@ -12,6 +12,9 @@ import (
 	"github.com/yokeTH/our-grader-backend/api/pkg/repository"
 	"github.com/yokeTH/our-grader-backend/api/pkg/server"
 	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
+	"github.com/yokeTH/our-grader-backend/proto/verilog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -29,6 +32,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create storage: %v", err)
 	}
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		{
+			panic(err)
+		}
+	}
+	verilogGradingServer := verilog.NewSomeServiceClient(conn)
 
 	auth := middleware.NewAuthMiddleware()
 
@@ -42,7 +52,7 @@ func main() {
 	languageHandler := handler.NewLanguageHandler(languageService)
 
 	submissionRepo := repository.NewSubmissionRepository(db)
-	submissionService := service.NewSubmissionService(store, submissionRepo, problemRepo)
+	submissionService := service.NewSubmissionService(store, submissionRepo, problemRepo, verilogGradingServer)
 	submissionHandler := handler.NewSubmissionHandler(submissionService)
 
 	s := server.New(

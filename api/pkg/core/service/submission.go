@@ -11,19 +11,22 @@ import (
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/port"
 	"github.com/yokeTH/our-grader-backend/api/pkg/dto"
 	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
+	"github.com/yokeTH/our-grader-backend/proto/verilog"
 )
 
 type SubmissionService struct {
 	storage        storage.IStorage
 	submissionRepo port.SubmissionRepository
 	problemRepo    port.ProblemRepository
+	client         verilog.SomeServiceClient
 }
 
-func NewSubmissionService(storage storage.IStorage, submissionRepo port.SubmissionRepository, problemRepo port.ProblemRepository) *SubmissionService {
+func NewSubmissionService(storage storage.IStorage, submissionRepo port.SubmissionRepository, problemRepo port.ProblemRepository, client verilog.SomeServiceClient) *SubmissionService {
 	return &SubmissionService{
 		storage:        storage,
 		problemRepo:    problemRepo,
 		submissionRepo: submissionRepo,
+		client:         client,
 	}
 }
 
@@ -68,6 +71,10 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 			return apperror.InternalServerError(err, "upload error")
 		}
 	}
+
+	s.client.Run(ctx, &verilog.VerilogRequest{
+		SubmissionID: uint32(submission.ID),
+	})
 
 	return nil
 }
