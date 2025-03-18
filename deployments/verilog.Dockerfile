@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install cocotb --break-system-packages
 
-COPY go.mod go.sum ./
+COPY ../go.mod ../go.sum ./
 
 RUN go mod download
 
-COPY . .
+COPY .. .
 
-RUN go build -o bin/server ./grading/server.go
+RUN go build -o /bin/server ./grading/server.go
 
 RUN chmod +x /app/bin/server
 

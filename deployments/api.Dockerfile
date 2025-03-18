@@ -9,11 +9,11 @@ RUN apk add --no-cache \
     python3-dev \
     gcc
 
-COPY go.mod go.sum ./
+COPY ../go.mod ../go.sum ./
 
 RUN go mod download
 
-COPY . .
+COPY .. .
 
 RUN go build -o bin/server ./api/cmd/server/main.go
 
