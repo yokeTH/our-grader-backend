@@ -8,6 +8,7 @@ import (
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/service"
 	"github.com/yokeTH/our-grader-backend/api/pkg/database"
 	"github.com/yokeTH/our-grader-backend/api/pkg/handler"
+	"github.com/yokeTH/our-grader-backend/api/pkg/middleware"
 	"github.com/yokeTH/our-grader-backend/api/pkg/repository"
 	"github.com/yokeTH/our-grader-backend/api/pkg/server"
 	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
@@ -29,6 +30,8 @@ func main() {
 		log.Fatalf("failed to create storage: %v", err)
 	}
 
+	auth := middleware.NewAuthMiddleware()
+
 	templateRepo := repository.NewTemplateFileRepository(db)
 	problemRepo := repository.NewProblemRepository(db)
 	problemService := service.NewProblemService(problemRepo, templateRepo, store)
@@ -49,14 +52,14 @@ func main() {
 	)
 
 	problemRoute := s.App.Group("/problems")
-	problemRoute.Post("/", problemHandler.CreateProblem)
+	problemRoute.Post("/", auth.Auth, auth.Owner, problemHandler.CreateProblem)
 
 	languageRoute := s.App.Group("/languages")
-	languageRoute.Get("/", languageHandler.GetAll)
-	languageRoute.Post("/", languageHandler.Create)
+	languageRoute.Get("/", auth.Auth, auth.Owner, languageHandler.GetAll)
+	languageRoute.Post("/", auth.Auth, auth.Owner, languageHandler.Create)
 
 	submissionRoute := s.App.Group("/submissions")
-	submissionRoute.Post("/", submissionHandler.Submit)
+	submissionRoute.Post("/", auth.Auth, submissionHandler.Submit)
 
 	s.Start(ctx, stop)
 }
