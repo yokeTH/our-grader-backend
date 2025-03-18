@@ -61,9 +61,9 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 		return apperror.InternalServerError(err, "create submission error")
 	}
 
-	for _, v := range body.Codes {
+	for i, v := range body.Codes {
 		data := strings.NewReader(v.Code)
-		key := fmt.Sprintf("submissions/%d/%s", submission.ID, v.TemplateFileName)
+		key := fmt.Sprintf("submissions/%d/%d", submission.ID, submissionFiles[i].TemplateFileID)
 		if err := s.storage.UploadFile(ctx, key, "text/plain", data); err != nil {
 			return apperror.InternalServerError(err, "upload error")
 		}

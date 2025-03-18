@@ -24,6 +24,7 @@ func (r *SubmissionRepository) GetSubmissionsByID(id uint) (domain.Submission, e
 	var submissions domain.Submission
 
 	if err := r.db.Preload("SubmissionFile").
+		Preload("SubmissionFile.TemplateFile").
 		Preload("Language").
 		Preload("Problem").
 		Preload("Testcases").
