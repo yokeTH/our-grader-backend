@@ -21,7 +21,7 @@ func NewSubmissionHandler(ps *service.SubmissionService) *SubmissionHandler {
 
 func (h *SubmissionHandler) Submit(c *fiber.Ctx) error {
 	body := new(dto.SubmissionRequest)
-	profile := c.Locals("profile").(*domain.Profile)
+	profile := c.Locals("profile").(domain.Profile)
 	if err := c.BodyParser(body); err != nil {
 		return apperror.BadRequestError(errors.New("request body invalid"), "request body invalid")
 	}

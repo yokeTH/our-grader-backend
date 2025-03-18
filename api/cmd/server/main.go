@@ -52,6 +52,7 @@ func main() {
 	)
 
 	problemRoute := s.App.Group("/problems")
+	problemRoute.Get("/", auth.Auth, problemHandler.GetProblems)
 	problemRoute.Post("/", auth.Auth, auth.Owner, problemHandler.CreateProblem)
 
 	languageRoute := s.App.Group("/languages")

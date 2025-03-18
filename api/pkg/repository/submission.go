@@ -49,3 +49,10 @@ func (r *SubmissionRepository) GetSubmissionsByUserIDAndProblemID(email string, 
 	}
 	return submissions, lastPage, total, nil
 }
+
+func (r *SubmissionRepository) Update(data *domain.Submission) error {
+	if err := r.db.Updates(data).Error; err != nil {
+		return err
+	}
+	return nil
+}

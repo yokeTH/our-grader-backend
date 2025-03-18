@@ -110,6 +110,8 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	if err := store.UploadFile(ctx, fileKey, "text/plain", strings.NewReader(string(stdOut))); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
+	submission.StdoutObjectKey = fileKey
+	submissionRepo.Update(&submission)
 
 	// Parse the simulation result
 	resultPath := fmt.Sprintf("%s/%s", simDir, "results.xml")

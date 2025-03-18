@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"math"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/yokeTH/our-grader-backend/api/pkg/apperror"
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/port"
@@ -34,8 +36,19 @@ func (h *ProblemHandler) CreateProblem(ctx *fiber.Ctx) error {
 	return ctx.Status(201).JSON(dto.Success(problem))
 }
 
-func (h *ProblemHandler) GetProblems(ctx *fiber.Ctx) error {
-	return nil
+func (h *ProblemHandler) GetProblems(c *fiber.Ctx) error {
+	limit := math.Min(float64(c.QueryInt("limit", 10)), 50)
+	page := c.QueryInt("limit", 1)
+	problems, last, total, err := h.problemService.GetProblems(int(limit), page)
+	if err != nil {
+		return err
+	}
+	return c.JSON(dto.SuccessPagination(problems, dto.Pagination{
+		CurrentPage: page,
+		LastPage:    last,
+		Total:       total,
+		Limit:       int(limit),
+	}))
 }
 
 func (h *ProblemHandler) GetProblemByID(ctx *fiber.Ctx) error {

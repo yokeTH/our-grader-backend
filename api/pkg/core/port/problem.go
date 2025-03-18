@@ -21,7 +21,7 @@ type ProblemHandler interface {
 type ProblemService interface {
 	CreateProblem(ctx context.Context, problem dto.ProblemRequestFrom, zip *multipart.FileHeader) (domain.Problem, error)
 	GetProblemByID() (domain.Problem, error)
-	GetProblems(limit int, page int) ([]domain.Problem, error)
+	GetProblems(limit int, page int) ([]domain.Problem, int, int, error)
 	UpdateProblem(id uint, problem domain.Problem) (domain.Problem, error)
 	DeleteProblem() error
 }
