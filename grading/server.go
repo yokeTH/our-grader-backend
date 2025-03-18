@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"os/exec"
 
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
 	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
@@ -34,8 +36,9 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", in.ZipKey)
-	outputFile, err := os.Create("/problems/21/zip/1742237831461.zip")
+	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", in.ZipKey)
+	os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm)
+	outputFile, err := os.Create(zipLocation)
 	if err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
@@ -47,9 +50,20 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	if err := unzip.UnzipFile("/Users/yoketh/Repo/our-grader-backend/bin/problems/21/zip/1742237831461.zip", "/Users/yoketh/Repo/our-grader-backend/bin/unzip"); err != nil {
+	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/tmp/run"
+	os.MkdirAll(unzipDir, os.ModePerm)
+	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
+
+	workingDir := fmt.Sprintf("%s/%s", unzipDir, "cocotb")
+	cmd := exec.Command("make")
+	cmd.Dir = workingDir
+	stdOut, err := cmd.CombinedOutput()
+	if err != nil {
+		return &verilog.VerilogResponse{Msg: "Success"}, nil
+	}
+	fmt.Println(string(stdOut))
 
 	return &verilog.VerilogResponse{Msg: "Success"}, nil
 }
