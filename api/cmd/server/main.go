@@ -60,6 +60,7 @@ func main() {
 
 	submissionRoute := s.App.Group("/submissions")
 	submissionRoute.Post("/", auth.Auth, submissionHandler.Submit)
+	submissionRoute.Get("/problem/:problemID", auth.Auth, submissionHandler.GetSubmissions)
 
 	s.Start(ctx, stop)
 }

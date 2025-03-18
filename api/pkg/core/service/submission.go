@@ -71,3 +71,7 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 
 	return nil
 }
+
+func (s *SubmissionService) GetSubmissionsByUserIDAndProblemID(email string, pid uint, limit int, page int) ([]domain.Submission, int, int, error) {
+	return s.submissionRepo.GetSubmissionsByUserIDAndProblemID(email, pid, limit, page)
+}

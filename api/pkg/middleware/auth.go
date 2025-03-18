@@ -60,7 +60,7 @@ func (a *AuthMiddleware) Auth(ctx *fiber.Ctx) error {
 }
 
 func (a *AuthMiddleware) Owner(ctx *fiber.Ctx) error {
-	profile, ok := ctx.Locals("profile").(*domain.Profile)
+	profile, ok := ctx.Locals("profile").(domain.Profile)
 	if !ok {
 		return apperror.UnauthorizedError(errors.New("profile not found in context"), "User profile is required")
 	}
