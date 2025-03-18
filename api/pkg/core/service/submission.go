@@ -54,6 +54,7 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 		SubmissionFile: submissionFiles,
 		LanguageName:   body.Language,
 		ProblemID:      body.ProblemID,
+		Testcases:      make([]domain.Testcase, problem.TestcaseNum),
 	}
 
 	if err := s.submissionRepo.Create(&submission); err != nil {
