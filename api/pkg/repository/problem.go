@@ -33,7 +33,7 @@ func (r *ProblemRepository) GetProblems(limit int, page int) ([]domain.Problem, 
 
 func (r *ProblemRepository) GetProblemByID(id uint) (domain.Problem, error) {
 	var problem *domain.Problem
-	if err := r.db.Model(&problem).First(&problem).Where("id = ?", id).Error; err != nil {
+	if err := r.db.Preload("EditableFile").Where("id = ?", id).First(&problem).Error; err != nil {
 		return *problem, err
 	}
 	return *problem, nil

@@ -7,6 +7,6 @@ type SubmissionRequest struct {
 }
 
 type CodeFile struct {
-	Code           string `json:"code"`
-	TemplateFileID uint   `json:"template_id"`
+	Code             string `json:"code"`
+	TemplateFileName string `json:"template_name"`
 }

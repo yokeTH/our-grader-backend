@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -28,9 +29,23 @@ func NewSubmissionService(storage storage.IStorage, submissionRepo port.Submissi
 
 func (s *SubmissionService) Create(ctx context.Context, by string, body dto.SubmissionRequest) error {
 	submissionFiles := make([]*domain.SubmissionFile, len(body.Codes))
+	problem, err := s.problemRepo.GetProblemByID(body.ProblemID)
+	if err != nil {
+		return err
+	}
 	for i, v := range body.Codes {
+		var id uint = 0
+		for _, file := range problem.EditableFile {
+			if strings.HasSuffix(file.Name, v.TemplateFileName) {
+				id = file.ID
+				break
+			}
+		}
+		if id == 0 {
+			return apperror.BadRequestError(errors.New("mismatch"), "invalid request")
+		}
 		submissionFiles[i] = &domain.SubmissionFile{
-			TemplateFileID: v.TemplateFileID,
+			TemplateFileID: id,
 		}
 	}
 
@@ -47,7 +62,7 @@ func (s *SubmissionService) Create(ctx context.Context, by string, body dto.Subm
 
 	for _, v := range body.Codes {
 		data := strings.NewReader(v.Code)
-		key := fmt.Sprintf("submissions/%d/%d", submission.ID, v.TemplateFileID)
+		key := fmt.Sprintf("submissions/%d/%s", submission.ID, v.TemplateFileName)
 		if err := s.storage.UploadFile(ctx, key, "text/plain", data); err != nil {
 			return apperror.InternalServerError(err, "upload error")
 		}
