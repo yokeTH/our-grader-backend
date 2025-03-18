@@ -29,65 +29,69 @@ type server struct {
 }
 
 func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.VerilogResponse, error) {
-	// Load configurations and setup storage and database
 	config := config.Load()
 	store, err := storage.NewR2Storage(config.R2)
 	if err != nil {
+		fmt.Println("storage.NewR2Storage failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
 	db, err := database.NewPostgresDB(config.PSQL)
 	if err != nil {
+		fmt.Println("database.NewPostgresDB failed:", err.Error())
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
 	submissionRepo := repository.NewSubmissionRepository(db)
 
-	// Retrieve submission from database
 	submission, err := submissionRepo.GetSubmissionsByID(uint(in.SubmissionID))
 	if err != nil {
+		fmt.Println("submissionRepo.GetSubmissionsByID failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// Retrieve and store the zip file from cloud storage
 	body, err := store.GetFile(ctx, submission.Problem.ProjectZipFile)
 	if err != nil {
+		fmt.Println("store.GetFile failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/app/tmp/%s", submission.Problem.ProjectZipFile)
+	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/tmp/%s", submission.Problem.ProjectZipFile)
 	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
+		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
 	outputFile, err := os.Create(zipLocation)
 	if err != nil {
+		fmt.Println("os.Create failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 	defer outputFile.Close()
 
-	// Copy the content of the zip file to the local file system
 	_, err = io.Copy(outputFile, body)
 	if err != nil {
+		fmt.Println("io.Copy failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// Unzip the contents to a temporary directory
-	unzipDir := "/app/run"
+	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/run"
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
+		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
 	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
+		fmt.Println("unzip.UnzipFile failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// Write submission files to the unzip directory
 	for _, file := range submission.SubmissionFile {
 		fileKey := fmt.Sprintf("submissions/%d/%d", submission.ID, file.TemplateFileID)
 		fileContent, err := store.GetFile(ctx, fileKey)
 		if err != nil {
+			fmt.Println("store.GetFile failed:", err.Error())
 			return &verilog.VerilogResponse{Msg: err.Error()}, nil
 		}
 		defer fileContent.Close()
@@ -95,45 +99,66 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		localFilePath := fmt.Sprintf("%s/%s", unzipDir, file.TemplateFile.Name)
 		localFile, err := os.Create(localFilePath)
 		if err != nil {
+			fmt.Println("os.Create failed:", err.Error())
 			return &verilog.VerilogResponse{Msg: err.Error()}, nil
 		}
 		defer localFile.Close()
 
 		_, err = io.Copy(localFile, fileContent)
 		if err != nil {
+			fmt.Println("io.Copy failed:", err.Error())
 			return &verilog.VerilogResponse{Msg: err.Error()}, nil
 		}
 	}
 
-	// Run the simulation using `make`
 	simDir := fmt.Sprintf("%s/%s", unzipDir, "cocotb")
 	cmd := exec.Command("make")
 	cmd.Dir = simDir
 	stdOut, _ := cmd.CombinedOutput()
 
-	// Save stdout to cloud storage
 	fileKey := fmt.Sprintf("submissions/%d/stdOut.txt", submission.ID)
 	if err := store.UploadFile(ctx, fileKey, "text/plain", strings.NewReader(string(stdOut))); err != nil {
+		fmt.Println("store.UploadFile failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 	submission.StdoutObjectKey = fileKey
 	if err := submissionRepo.Update(&submission); err != nil {
+		fmt.Println("submissionRepo.Update failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	// Parse the simulation result
-	resultPath := fmt.Sprintf("%s/%s", simDir, "results.xml")
-	simResult, err := result.GetResult(resultPath)
-	if err != nil {
-		return &verilog.VerilogResponse{Msg: err.Error()}, nil
-	}
-
-	// Process the test case results concurrently
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var firstErr error
 
 	testcaseRepo := repository.NewTestcaseRepository(db)
+
+	resultPath := fmt.Sprintf("%s/%s", simDir, "results.xml")
+	simResult, err := result.GetResult(resultPath)
+	if err != nil {
+		fmt.Println("result.GetResult failed:", err.Error())
+
+		for i := range submission.Testcases {
+			submission.Testcases[i].Result = domain.TestResultCompile
+			err := testcaseRepo.UpdateTestcase(&submission.Testcases[i])
+
+			if err != nil {
+				fmt.Println("testcaseRepo.UpdateTestcase failed:", err.Error())
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
+			}
+		}
+
+		return &verilog.VerilogResponse{Msg: err.Error()}, nil
+	}
+	wg.Wait()
+
+	if firstErr != nil {
+		return &verilog.VerilogResponse{Msg: firstErr.Error()}, nil
+	}
 
 	for _, testsuite := range simResult.Testsuite {
 		for i, testcase := range testsuite.Testcase {
@@ -153,6 +178,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 				err := testcaseRepo.UpdateTestcase(&testcaseResult)
 
 				if err != nil {
+					fmt.Println("testcaseRepo.UpdateTestcase failed:", err.Error())
 					mu.Lock()
 					if firstErr == nil {
 						firstErr = err
@@ -165,7 +191,6 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 
 	wg.Wait()
 
-	// Handle any errors encountered during the concurrent processing
 	if firstErr != nil {
 		return &verilog.VerilogResponse{Msg: firstErr.Error()}, nil
 	}
@@ -174,9 +199,9 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 }
 
 func main() {
-	// Start the gRPC server
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
+		fmt.Println("net.Listen failed:", err.Error())
 		log.Fatalf("failed to listen: %v", err)
 	}
 
@@ -184,6 +209,7 @@ func main() {
 	verilog.RegisterSomeServiceServer(grpcServer, &server{})
 
 	if err := grpcServer.Serve(lis); err != nil {
+		fmt.Println("grpcServer.Serve failed:", err.Error())
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
