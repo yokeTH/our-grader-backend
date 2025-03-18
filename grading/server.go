@@ -56,7 +56,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	}
 	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/%s", submission.Problem.ProjectZipFile)
+	zipLocation := fmt.Sprintf("/app/tmp/%s", submission.Problem.ProjectZipFile)
 	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
@@ -74,7 +74,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	}
 
 	// Unzip the contents to a temporary directory
-	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/tmp/run"
+	unzipDir := "/app/run"
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
@@ -32,7 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create storage: %v", err)
 	}
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(fmt.Sprintf("%s:50051", config.VerilogServer), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		{
 			panic(err)
@@ -63,6 +64,7 @@ func main() {
 
 	problemRoute := s.App.Group("/problems")
 	problemRoute.Get("/", auth.Auth, problemHandler.GetProblems)
+	problemRoute.Get("/:id", auth.Auth, problemHandler.GetProblemByID)
 	problemRoute.Post("/", auth.Auth, auth.Owner, problemHandler.CreateProblem)
 
 	languageRoute := s.App.Group("/languages")

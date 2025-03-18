@@ -176,8 +176,8 @@ func (s *ProblemService) CreateProblem(ctx context.Context, problemBody dto.Prob
 func (s *ProblemService) GetProblems(limit int, page int) ([]domain.Problem, int, int, error) {
 	return s.ProblemRepository.GetProblems(limit, page)
 }
-func (s *ProblemService) GetProblemByID() (domain.Problem, error) {
-	return domain.Problem{}, nil
+func (s *ProblemService) GetProblemByID(id uint) (domain.Problem, error) {
+	return s.ProblemRepository.GetProblemByID(id)
 }
 func (s *ProblemService) UpdateProblem(id uint, problem domain.Problem) (domain.Problem, error) {
 	return domain.Problem{}, nil

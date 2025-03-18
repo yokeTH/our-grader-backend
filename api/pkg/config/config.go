@@ -10,9 +10,10 @@ import (
 )
 
 type Config struct {
-	Server server.Config           `envPrefix:"SERVER_"`
-	PSQL   database.PostgresConfig `envPrefix:"POSTGRES_"`
-	R2     storage.R2Config        `envPrefix:"R2_"`
+	Server        server.Config           `envPrefix:"SERVER_"`
+	PSQL          database.PostgresConfig `envPrefix:"POSTGRES_"`
+	R2            storage.R2Config        `envPrefix:"R2_"`
+	VerilogServer string                  `env:"VERILOG_SERVER"`
 }
 
 func Load() *Config {

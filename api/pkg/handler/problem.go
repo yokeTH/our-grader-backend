@@ -52,7 +52,18 @@ func (h *ProblemHandler) GetProblems(c *fiber.Ctx) error {
 }
 
 func (h *ProblemHandler) GetProblemByID(ctx *fiber.Ctx) error {
-	return nil
+	id, err := ctx.ParamsInt("id")
+	if err != nil {
+		return apperror.BadRequestError(err, "bad request error")
+	}
+	problem, err := h.problemService.GetProblemByID(uint(id))
+	if err != nil {
+		if apperror.IsAppError(err) {
+			return err
+		}
+		return apperror.InternalServerError(err, "get problem by id error")
+	}
+	return ctx.JSON(dto.Success(problem))
 }
 
 func (h *ProblemHandler) UpdateProblem(ctx *fiber.Ctx) error {
