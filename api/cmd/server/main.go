@@ -4,12 +4,17 @@ import (
 	"context"
 	"log"
 
-	"github.com/yokeTH/our-grader-backend/api/internal/core/service"
-	"github.com/yokeTH/our-grader-backend/api/internal/database"
-	"github.com/yokeTH/our-grader-backend/api/internal/handler"
-	"github.com/yokeTH/our-grader-backend/api/internal/repository"
-	"github.com/yokeTH/our-grader-backend/api/internal/server"
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
+	"github.com/yokeTH/our-grader-backend/api/pkg/core/service"
+	"github.com/yokeTH/our-grader-backend/api/pkg/database"
+	"github.com/yokeTH/our-grader-backend/api/pkg/handler"
+	"github.com/yokeTH/our-grader-backend/api/pkg/middleware"
+	"github.com/yokeTH/our-grader-backend/api/pkg/repository"
+	"github.com/yokeTH/our-grader-backend/api/pkg/server"
+	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
+	"github.com/yokeTH/our-grader-backend/proto/verilog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -23,9 +28,32 @@ func main() {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	bookRepository := repository.NewBookRepository(db)
-	bookService := service.NewBookService(bookRepository)
-	bookHandler := handler.NewBookHandler(bookService)
+	store, err := storage.NewR2Storage(config.R2)
+	if err != nil {
+		log.Fatalf("failed to create storage: %v", err)
+	}
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		{
+			panic(err)
+		}
+	}
+	verilogGradingServer := verilog.NewSomeServiceClient(conn)
+
+	auth := middleware.NewAuthMiddleware()
+
+	templateRepo := repository.NewTemplateFileRepository(db)
+	problemRepo := repository.NewProblemRepository(db)
+	problemService := service.NewProblemService(problemRepo, templateRepo, store)
+	problemHandler := handler.NewProblemHandler(problemService)
+
+	languageRepo := repository.NewLanguageRepository(db)
+	languageService := service.NewLanguageService(languageRepo)
+	languageHandler := handler.NewLanguageHandler(languageService)
+
+	submissionRepo := repository.NewSubmissionRepository(db)
+	submissionService := service.NewSubmissionService(store, submissionRepo, problemRepo, verilogGradingServer)
+	submissionHandler := handler.NewSubmissionHandler(submissionService)
 
 	s := server.New(
 		server.WithName(config.Server.Name),
@@ -33,11 +61,17 @@ func main() {
 		server.WithPort(config.Server.Port),
 	)
 
-	s.Get("/books", bookHandler.GetBooks)
-	s.Get("/books/:id", bookHandler.GetBook)
-	s.Post("/books", bookHandler.CreateBook)
-	s.Patch("/books/:id", bookHandler.UpdateBook)
-	s.Delete("/books/:id", bookHandler.DeleteBook)
+	problemRoute := s.App.Group("/problems")
+	problemRoute.Get("/", auth.Auth, problemHandler.GetProblems)
+	problemRoute.Post("/", auth.Auth, auth.Owner, problemHandler.CreateProblem)
+
+	languageRoute := s.App.Group("/languages")
+	languageRoute.Get("/", auth.Auth, auth.Owner, languageHandler.GetAll)
+	languageRoute.Post("/", auth.Auth, auth.Owner, languageHandler.Create)
+
+	submissionRoute := s.App.Group("/submissions")
+	submissionRoute.Post("/", auth.Auth, submissionHandler.Submit)
+	submissionRoute.Get("/problem/:problemID", auth.Auth, submissionHandler.GetSubmissions)
 
 	s.Start(ctx, stop)
 }

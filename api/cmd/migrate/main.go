@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/yokeTH/our-grader-backend/api/internal/core/domain"
-	"github.com/yokeTH/our-grader-backend/api/internal/database"
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
+	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
+	"github.com/yokeTH/our-grader-backend/api/pkg/database"
 )
 
 func main() {
@@ -18,7 +18,12 @@ func main() {
 	}
 
 	if err := db.AutoMigrate(
-		&domain.Book{},
+		&domain.Language{},
+		&domain.Problem{},
+		&domain.SubmissionFile{},
+		&domain.Submission{},
+		&domain.TemplateFile{},
+		&domain.Testcase{},
 	); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}

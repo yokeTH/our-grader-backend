@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/yokeTH/our-grader-backend/api/pkg/response"
+	"github.com/yokeTH/our-grader-backend/api/pkg/dto"
 )
 
 type AppError struct {
@@ -63,14 +63,14 @@ func UnprocessableEntityError(err error, msg string) *AppError {
 	return New(fiber.StatusUnprocessableEntity, msg, err)
 }
 
-func ErrorHandler(c *fiber.Ctx, err error) error {
+func ErrorHandler(ctx *fiber.Ctx, err error) error {
 
 	// if is app error
 	if IsAppError(err) {
 		e := err.(*AppError)
-		if err := c.Status(e.Code).JSON(response.ErrorResponse{Error: e.Message}); err != nil {
+		if err := ctx.Status(e.Code).JSON(dto.ErrorResponse{Error: e.Message}); err != nil {
 			// if can't send error
-			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+			return ctx.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 		}
 		return nil
 	}
@@ -81,9 +81,9 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		code = e.Code
 	}
 
-	if err := c.Status(code).JSON(response.ErrorResponse{Error: err.Error()}); err != nil {
+	if err := ctx.Status(code).JSON(dto.ErrorResponse{Error: err.Error()}); err != nil {
 		// if can't send error
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
 	return nil

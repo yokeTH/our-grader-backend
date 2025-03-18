@@ -4,8 +4,8 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/joho/godotenv"
-	"github.com/yokeTH/our-grader-backend/api/internal/database"
-	"github.com/yokeTH/our-grader-backend/api/internal/server"
+	"github.com/yokeTH/our-grader-backend/api/pkg/database"
+	"github.com/yokeTH/our-grader-backend/api/pkg/server"
 	"github.com/yokeTH/our-grader-backend/api/pkg/storage"
 )
 
