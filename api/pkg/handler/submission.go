@@ -36,7 +36,7 @@ func (h *SubmissionHandler) Submit(c *fiber.Ctx) error {
 func (h *SubmissionHandler) GetSubmissions(c *fiber.Ctx) error {
 	profile := c.Locals("profile").(domain.Profile)
 	limit := math.Min(float64(c.QueryInt("limit", 10)), 50)
-	page := c.QueryInt("limit", 1)
+	page := c.QueryInt("page", 1)
 	problemID, err := c.ParamsInt("problemID")
 	if err != nil {
 		return apperror.BadRequestError(err, "invalid problem ID")
