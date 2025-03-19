@@ -57,7 +57,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	}
 	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/Users/yoketh/Repo/our-grader-backend/bin/tmp/%s", submission.Problem.ProjectZipFile)
+	zipLocation := fmt.Sprintf("/app/%d/tmp/%s", in.SubmissionID, submission.Problem.ProjectZipFile)
 	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
@@ -76,7 +76,8 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	unzipDir := "/Users/yoketh/Repo/our-grader-backend/bin/run"
+	unzipDir := "/app/%d/run"
+	unzipDir = fmt.Sprint(unzipDir, submission.ID)
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
