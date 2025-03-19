@@ -77,7 +77,7 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	}
 
 	unzipDir := "/app/%d/run"
-	unzipDir = fmt.Sprint(unzipDir, submission.ID)
+	unzipDir = fmt.Sprintf(unzipDir, submission.ID)
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
