@@ -97,13 +97,16 @@ func (s *server) processVerilog(ctx context.Context, in *verilog.VerilogRequest)
 	}
 	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/app/%d/tmp/%s", in.SubmissionID, submission.Problem.ProjectZipFile)
-	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
+	basePath := fmt.Sprintf("/tmp/verilog/%d", in.SubmissionID)
+
+	zipPath := fmt.Sprintf("%s/%s", basePath, "zip.zip")
+	zipDir := zipPath[:len(zipPath)-len("/zip.zip")]
+	if err := os.MkdirAll(zipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	outputFile, err := os.Create(zipLocation)
+	outputFile, err := os.Create(zipPath)
 	if err != nil {
 		fmt.Println("os.Create failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
@@ -121,14 +124,13 @@ func (s *server) processVerilog(ctx context.Context, in *verilog.VerilogRequest)
 		return nil, ctx.Err()
 	}
 
-	unzipDir := "/app/%d/run"
-	unzipDir = fmt.Sprintf(unzipDir, submission.ID)
+	unzipDir := fmt.Sprintf("%s/prj", basePath)
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
+	if err := unzip.UnzipFile(zipPath, unzipDir); err != nil {
 		fmt.Println("unzip.UnzipFile failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
