@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yokeTH/our-grader-backend/api/pkg/config"
 	"github.com/yokeTH/our-grader-backend/api/pkg/core/domain"
@@ -20,20 +21,55 @@ import (
 	"github.com/yokeTH/our-grader-backend/grading/pkg/unzip"
 	"github.com/yokeTH/our-grader-backend/proto/verilog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-const port = ":50051"
+const (
+	port             = ":50051"
+	executionTimeout = 1 * time.Minute
+	requestTimeout   = 1 * time.Minute
+)
 
 type server struct {
 	verilog.UnimplementedSomeServiceServer
 }
 
 func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.VerilogResponse, error) {
+	// Create a new context with timeout
+	ctx, cancel := context.WithTimeout(ctx, executionTimeout)
+	defer cancel()
+
+	// Create a channel to track if context is done before function completes
+	done := make(chan struct{})
+	var resp *verilog.VerilogResponse
+	var execErr error
+
+	go func() {
+		resp, execErr = s.processVerilog(ctx, in)
+		close(done)
+	}()
+
+	// Wait for either completion or context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, status.Errorf(codes.DeadlineExceeded, "request timed out after %v", executionTimeout)
+	case <-done:
+		return resp, execErr
+	}
+}
+
+func (s *server) processVerilog(ctx context.Context, in *verilog.VerilogRequest) (*verilog.VerilogResponse, error) {
 	config := config.Load()
 	store, err := storage.NewR2Storage(config.R2)
 	if err != nil {
 		fmt.Println("storage.NewR2Storage failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
+	}
+
+	// Check if context is cancelled
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	db, err := database.NewPostgresDB(config.PSQL)
@@ -50,6 +86,11 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
+	// Check if context is cancelled
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	body, err := store.GetFile(ctx, submission.Problem.ProjectZipFile)
 	if err != nil {
 		fmt.Println("store.GetFile failed:", err.Error())
@@ -57,13 +98,16 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 	}
 	defer body.Close()
 
-	zipLocation := fmt.Sprintf("/app/%d/tmp/%s", in.SubmissionID, submission.Problem.ProjectZipFile)
-	if err := os.MkdirAll(zipLocation[:len(zipLocation)-len("/zip.zip")], os.ModePerm); err != nil {
+	basePath := fmt.Sprintf("/tmp/verilog/%d", in.SubmissionID)
+
+	zipPath := fmt.Sprintf("%s/%s", basePath, "zip.zip")
+	zipDir := zipPath[:len(zipPath)-len("/zip.zip")]
+	if err := os.MkdirAll(zipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	outputFile, err := os.Create(zipLocation)
+	outputFile, err := os.Create(zipPath)
 	if err != nil {
 		fmt.Println("os.Create failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
@@ -76,19 +120,28 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	unzipDir := "/app/%d/run"
-	unzipDir = fmt.Sprintf(unzipDir, submission.ID)
+	// Check if context is cancelled
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	unzipDir := fmt.Sprintf("%s/prj", basePath)
 	if err := os.MkdirAll(unzipDir, os.ModePerm); err != nil {
 		fmt.Println("os.MkdirAll failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
-	if err := unzip.UnzipFile(zipLocation, unzipDir); err != nil {
+	if err := unzip.UnzipFile(zipPath, unzipDir); err != nil {
 		fmt.Println("unzip.UnzipFile failed:", err.Error())
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
 
 	for _, file := range submission.SubmissionFile {
+		// Check if context is cancelled
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		fileKey := fmt.Sprintf("submissions/%d/%d", submission.ID, file.TemplateFileID)
 		fileContent, err := store.GetFile(ctx, fileKey)
 		if err != nil {
@@ -112,10 +165,26 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		}
 	}
 
+	// Run simulation with context
 	simDir := fmt.Sprintf("%s/%s", unzipDir, "cocotb")
-	cmd := exec.Command("make")
+
+	// Use CommandContext to respect context timeouts
+	cmd := exec.CommandContext(ctx, "make")
 	cmd.Dir = simDir
-	stdOut, _ := cmd.CombinedOutput()
+	stdOut, err := cmd.CombinedOutput()
+
+	// Check if the error was due to context cancellation
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// First handle the command execution error if there is one
+	// Note: This doesn't necessarily mean the simulation failed as the exit code
+	// might be non-zero but we still want to capture the output
+	if err != nil {
+		fmt.Printf("make command execution error: %v\n", err)
+		// We continue processing to capture the output regardless
+	}
 
 	fileKey := fmt.Sprintf("submissions/%d/stdOut.txt", submission.ID)
 	if err := store.UploadFile(ctx, fileKey, "text/plain", strings.NewReader(string(stdOut))); err != nil {
@@ -140,14 +209,19 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 		fmt.Println("result.GetResult failed:", err.Error())
 
 		for i := range submission.Testcases {
-			submission.Testcases[i].Result = domain.TestResultCompile
-			err := testcaseRepo.UpdateTestcase(&submission.Testcases[i])
+			// Check if context is cancelled
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 
-			if err != nil {
-				fmt.Println("testcaseRepo.UpdateTestcase failed:", err.Error())
+			submission.Testcases[i].Result = domain.TestResultCompile
+			updateErr := testcaseRepo.UpdateTestcase(&submission.Testcases[i])
+
+			if updateErr != nil {
+				fmt.Println("testcaseRepo.UpdateTestcase failed:", updateErr.Error())
 				mu.Lock()
 				if firstErr == nil {
-					firstErr = err
+					firstErr = updateErr
 				}
 				mu.Unlock()
 			}
@@ -155,42 +229,63 @@ func (s *server) Run(ctx context.Context, in *verilog.VerilogRequest) (*verilog.
 
 		return &verilog.VerilogResponse{Msg: err.Error()}, nil
 	}
-	wg.Wait()
 
-	if firstErr != nil {
-		return &verilog.VerilogResponse{Msg: firstErr.Error()}, nil
-	}
+	// Create a context-aware goroutine pool
+	processDone := make(chan struct{})
 
-	for _, testsuite := range simResult.Testsuite {
-		for i, testcase := range testsuite.Testcase {
-			wg.Add(1)
-			go func(testcase result.Testcase) {
-				defer wg.Done()
-
-				var result domain.TestcaseResult
-				if testcase.Failure != nil {
-					result = domain.TestResultFail
-				} else {
-					result = domain.TestResultPass
+	go func() {
+		for _, testsuite := range simResult.Testsuite {
+			for i, testcase := range testsuite.Testcase {
+				// Check if context is cancelled
+				if ctx.Err() != nil {
+					wg.Wait()
+					close(processDone)
+					return
 				}
 
-				testcaseResult := submission.Testcases[i]
-				testcaseResult.Result = result
-				err := testcaseRepo.UpdateTestcase(&testcaseResult)
+				wg.Add(1)
+				go func(testcase result.Testcase, index int) {
+					defer wg.Done()
 
-				if err != nil {
-					fmt.Println("testcaseRepo.UpdateTestcase failed:", err.Error())
-					mu.Lock()
-					if firstErr == nil {
-						firstErr = err
+					// Check context cancellation within goroutine
+					if ctx.Err() != nil {
+						return
 					}
-					mu.Unlock()
-				}
-			}(testcase)
-		}
-	}
 
-	wg.Wait()
+					var result domain.TestcaseResult
+					if testcase.Failure != nil {
+						result = domain.TestResultFail
+					} else {
+						result = domain.TestResultPass
+					}
+
+					testcaseResult := submission.Testcases[index]
+					testcaseResult.Result = result
+					updateErr := testcaseRepo.UpdateTestcase(&testcaseResult)
+
+					if updateErr != nil {
+						fmt.Println("testcaseRepo.UpdateTestcase failed:", updateErr.Error())
+						mu.Lock()
+						if firstErr == nil {
+							firstErr = updateErr
+						}
+						mu.Unlock()
+					}
+				}(testcase, i)
+			}
+		}
+
+		wg.Wait()
+		close(processDone)
+	}()
+
+	// Wait for either processing to complete or context to be cancelled
+	select {
+	case <-processDone:
+		// Processing completed normally
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 
 	if firstErr != nil {
 		return &verilog.VerilogResponse{Msg: firstErr.Error()}, nil
@@ -206,7 +301,12 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	// Configure server options with timeout
+	var serverOptions []grpc.ServerOption
+	serverOptions = append(serverOptions, grpc.ConnectionTimeout(requestTimeout))
+
+	// Create gRPC server with the configured options
+	grpcServer := grpc.NewServer(serverOptions...)
 	verilog.RegisterSomeServiceServer(grpcServer, &server{})
 
 	if err := grpcServer.Serve(lis); err != nil {

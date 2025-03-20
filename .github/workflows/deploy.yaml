@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ghcr.io/${{ env.REPO_NAME }}:api-latest
+          tags: ghcr.io/${{ env.REPO_NAME }}-api:latest
           context: .
           file: ./deployments/api.Dockerfile
 
@@ -55,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ghcr.io/${{ env.REPO_NAME }}:verilog-latest
+          tags: ghcr.io/${{ env.REPO_NAME }}-verilog:latest
           context: .
           file: ./deployments/verilog.Dockerfile
 
