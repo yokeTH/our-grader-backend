@@ -65,7 +65,7 @@ jobs:
           project: our-grader
           location: gke.cluster-rcf2
           name: backend
-          image: ghcr.io/${{ env.REPO_NAME }}@${{ steps.docker_build_api.outputs.digest }}
+          image: ghcr.io/${{ env.REPO_NAME }}-api@${{ steps.docker_build_api.outputs.digest }}
 
         env:
           DEPLOYS_AUTH_USER: ${{ secrets.DEPLOYS_AUTH_USER }}
@@ -77,7 +77,7 @@ jobs:
           project: our-grader
           location: gke.cluster-rcf2
           name: verilog
-          image: ghcr.io/${{ env.REPO_NAME }}@${{ steps.docker_build_verilog.outputs.digest }}
+          image: ghcr.io/${{ env.REPO_NAME }}-verilog@${{ steps.docker_build_verilog.outputs.digest }}
 
         env:
           DEPLOYS_AUTH_USER: ${{ secrets.DEPLOYS_AUTH_USER }}
