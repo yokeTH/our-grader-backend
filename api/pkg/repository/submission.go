@@ -43,7 +43,7 @@ func (r *SubmissionRepository) GetSubmissionsByUserIDAndProblemID(email string, 
 		Preload("Testcases").
 		Where("submission_by = ?", email).
 		Where("problem_id = ?", pid)
-	lastPage, total, err := r.db.Paginate(&submissions, query, limit, page, "id ASC")
+	lastPage, total, err := r.db.Paginate(&submissions, query, limit, page, "id DESC")
 	if err != nil {
 		return nil, 0, 0, err
 	}
