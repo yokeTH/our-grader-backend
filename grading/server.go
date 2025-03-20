@@ -27,7 +27,8 @@ import (
 
 const (
 	port             = ":50051"
-	executionTimeout = 5 * time.Minute // Set an appropriate timeout value
+	executionTimeout = 1 * time.Minute
+	requestTimeout   = 1 * time.Minute
 )
 
 type server struct {
@@ -302,7 +303,7 @@ func main() {
 
 	// Configure server options with timeout
 	var serverOptions []grpc.ServerOption
-	serverOptions = append(serverOptions, grpc.ConnectionTimeout(30*time.Second))
+	serverOptions = append(serverOptions, grpc.ConnectionTimeout(requestTimeout))
 
 	// Create gRPC server with the configured options
 	grpcServer := grpc.NewServer(serverOptions...)
